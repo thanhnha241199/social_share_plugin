@@ -51,6 +51,7 @@ public class SocialSharePlugin
     private final static String INSTAGRAM_PACKAGE_NAME = "com.instagram.android";
     private final static String FACEBOOK_PACKAGE_NAME = "com.facebook.katana";
     private final static String TWITTER_PACKAGE_NAME = "com.twitter.android";
+    private final static String TIKTOK_PACKAGE_NAME = "com.zhiliaoapp.musically";
 
     private final static int TWITTER_REQUEST_CODE = 0xc0ce;
     private final static int INSTAGRAM_REQUEST_CODE = 0xc0c3;
@@ -191,6 +192,16 @@ public class SocialSharePlugin
                     result.success(false);
                 }
                 break;
+            case "shareToTiktok":
+                try {
+                    pm.getPackageInfo(TIKTOK_PACKAGE_NAME, PackageManager.GET_ACTIVITIES);
+                    tiktokShare(call.<String>argument("imagePath"));
+                    result.success(true);
+                } catch (PackageManager.NameNotFoundException e) {
+                    openPlayStore(TIKTOK_PACKAGE_NAME);
+                    result.success(false);
+                }
+                break;
             default:
                 result.notImplemented();
                 break;
@@ -211,7 +222,7 @@ public class SocialSharePlugin
 
     private void instagramShare(String type, String imagePath) {
         final File image = new File(imagePath);
-        final Uri uri = FileProvider.getUriForFile(activity, activity.getPackageName() + ".social.share.fileprovider",
+        final Uri uri = FileProvider.getUriForFile(activity, activity.getPackageName() + ".flutter.social_share",
                 image);
         final Intent share = new Intent(Intent.ACTION_SEND);
         share.setType(type);
@@ -233,7 +244,7 @@ public class SocialSharePlugin
 
     private void facebookSharePhoto(String caption, String mediaPath, String hashtag) {
         final File media = new File(mediaPath);
-        final Uri uri = FileProvider.getUriForFile(activity, activity.getPackageName() + ".social.share.fileprovider",
+        final Uri uri = FileProvider.getUriForFile(activity, activity.getPackageName() + ".flutter.social_share",
                 media);
         final SharePhoto photo = new SharePhoto.Builder().setImageUrl(uri).setCaption(caption).build();
         final ShareHashtag shareHashtag = new ShareHashtag.Builder().setHashtag(hashtag).build();
@@ -242,14 +253,12 @@ public class SocialSharePlugin
         facebookShareContent(content);
     }
 
-    private void facebookShareVideo(String mediaPath, String hashtag) {
-        final File media = new File(mediaPath);
-        final Uri uri = FileProvider.getUriForFile(activity, activity.getPackageName() + ".social.share.fileprovider",
-                media);
+    private void facebookShareVideo(String path, String hashtag) {
+        final File media = new File(path);
+        final Uri uri = FileProvider.getUriForFile(activity, activity.getPackageName() + ".flutter.social_share", media);
         final ShareVideo video =  new ShareVideo.Builder().setLocalUrl(uri).build();
         final ShareHashtag shareHashtag = new ShareHashtag.Builder().setHashtag(hashtag).build();
-        final ShareVideoContent content = new ShareVideoContent.Builder().setVideo(video).setShareHashtag(shareHashtag).build();
-
+        final ShareVideoContent content = new ShareVideoContent.Builder().setVideo(video).build();
         facebookShareContent(content);
     }
 
@@ -257,6 +266,7 @@ public class SocialSharePlugin
         final Uri uri = Uri.parse(url);
         final ShareHashtag shareHashtag = new ShareHashtag.Builder().setHashtag(hashtag).build();
         final ShareLinkContent content = new ShareLinkContent.Builder().setContentUrl(uri).setShareHashtag(shareHashtag).setQuote(quote).build();
+       
         facebookShareContent(content);
     }
 
@@ -279,13 +289,25 @@ public class SocialSharePlugin
             @Override
             public void onError(FacebookException error) {
                 channel.invokeMethod("onError", error.getMessage());
-                Log.d("SocialSharePlugin", "Sharing error occurred.");
+                Log.d("SocialSharePlugin", error.getMessage());
+             
             }
         });
-
+        shareDialog.show(content);
         if (ShareDialog.canShow(content.getClass())) {
             shareDialog.show(content);
         }
+    }
+
+    private void tiktokShare(String imagePath) {
+        // final File image = new File(imagePath);
+        // final Uri uriToImage = FileProvider.getUriForFile(activity, activity.getPackageName() + ".flutter.social_share",
+        //         image);
+        // Intent shareIntent = new Intent();
+        // shareIntent.setAction(Intent.ACTION_SEND);
+        // shareIntent.putExtra(Intent.EXTRA_STREAM, uriToImage);
+        // shareIntent.setType("video/*");
+        // startActivity(Intent.createChooser(shareIntent));
     }
 
     private void twitterShareLink(String text, String url) {

@@ -200,12 +200,38 @@ class SocialSharePlugin {
     });
   }
 
+  static Future<bool?> shareToTiktok({
+    required String imagePath,
+    OnSuccessHandler? onSuccess,
+    OnCancelHandler? onCancel,
+  }) async {
+    _channel.setMethodCallHandler((call) async {
+      switch (call.method) {
+        case "onSuccess":
+          if (onSuccess != null) {
+            onSuccess(call.arguments);
+          }
+          break;
+        case "onCancel":
+          if (onCancel != null) {
+            onCancel();
+          }
+          break;
+        default:
+          throw UnsupportedError("Unknown method called");
+      }
+    });
+    return _channel.invokeMethod('shareToTiktok', <String, dynamic>{
+      'imagePath': imagePath,
+    });
+  }
+
   static Future<String> _urlToFilePath(String imageUrl) async {
-    Directory tempDir = await getTemporaryDirectory();
-    String tempPath = tempDir.path;
+    final Directory tempDir = await getTemporaryDirectory();
+    final String tempPath = tempDir.path;
     final filePath = '$tempPath/social_share_plugin_tmp_file';
-    File file = new File(filePath);
-    http.Response response = await http.get(Uri.parse(imageUrl));
+    final File file = File(filePath);
+    final http.Response response = await http.get(Uri.parse(imageUrl));
     await file.writeAsBytes(response.bodyBytes);
     return filePath;
   }

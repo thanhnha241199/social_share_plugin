@@ -1,6 +1,7 @@
 #import "SocialSharePlugin.h"
 #import <FBSDKCoreKit/FBSDKCoreKit.h>
 #import <FBSDKShareKit/FBSDKShareKit.h>
+#import <AssetsLibrary/AssetsLibrary.h>
 //#import <TwitterKit/TWTRKit.h>
 
 @implementation SocialSharePlugin {
@@ -94,7 +95,7 @@ NSString *currentHashtag;
   } else if ([@"shareToFeedFacebookVideo" isEqualToString:call.method]) {
       NSURL *fbURL = [NSURL URLWithString:@"fbapi://"];
       if([[UIApplication sharedApplication] canOpenURL:fbURL]) {
-          [self facebookShareVideoWithPicker:call.arguments[@"path"] hashtag:call.arguments[@"hashtag"]];
+          [self facebookShareVideo:call.arguments[@"path"] hashtag:call.arguments[@"hashtag"]];
           result(nil);
       } else {
           NSString *fbLink = @"itms-apps://itunes.apple.com/us/app/apple-store/id284882215";
@@ -134,6 +135,14 @@ NSString *currentHashtag;
           }
           result(false);
       }
+  } else if([@"shareToTiktok" isEqualToString:call.method]) {
+      NSString *twitterLink = @"itms-apps://itunes.apple.com/us/app/apple-store/id1235601864";
+          if (@available(iOS 10.0, *)) {
+              [[UIApplication sharedApplication] openURL:[NSURL URLWithString:twitterLink] options:@{} completionHandler:^(BOOL success) {}];
+          } else {
+              [[UIApplication sharedApplication] openURL:[NSURL URLWithString:twitterLink]];
+          }
+          result(false);
   } else {
     result(FlutterMethodNotImplemented);
   }
@@ -154,22 +163,41 @@ NSString *currentHashtag;
     [FBSDKShareDialog showFromViewController:controller withContent:content delegate:self];
 }
 
-- (void)facebookShareVideoWithPicker:(NSString*)videoPath
+- (void)facebookShareVideo:(NSString*)path
                              hashtag:(NSString*)hashtag {
-    if (hashtag != (NSString*) [NSNull null] ) {
-        currentHashtag = hashtag;
+    NSString *stringURL = path;
+    NSURL *_videoURL = [NSURL URLWithString:stringURL];
+    ALAssetsLibrary *library = [[ALAssetsLibrary alloc] init];
+    ALAssetsLibraryWriteVideoCompletionBlock videoWriteCompletionBlock =
+    ^(NSURL *newURL, NSError *error) {
+        if (error) {
+            NSLog( @"Error writing image with metadata to Photo Library: %@", error );
+        } else {
+            NSLog( @"Wrote image with metadata to Photo Library %@", newURL.absoluteString);
+            //share to facebook when we have new asset URL
+            FBSDKShareVideo *shareVideo = [[FBSDKShareVideo alloc]init];
+            shareVideo.videoURL = newURL;
+            FBSDKShareVideoContent *shareContent = [[FBSDKShareVideoContent alloc] init];
+            shareContent.video = shareVideo;
+            [FBSDKShareDialog showFromViewController:self withContent:shareContent delegate:nil];
+        }
+    };
+
+    //write video file and fire up facebook sharing diaglog when complete
+    if ([library videoAtPathIsCompatibleWithSavedPhotosAlbum:_videoURL])
+    {
+        [library writeVideoAtPathToSavedPhotosAlbum:_videoURL
+                                    completionBlock:videoWriteCompletionBlock];
     }
-    UIImagePickerController *videoPicker = [[UIImagePickerController alloc] init];
-    videoPicker.delegate = self;
-    videoPicker.modalPresentationStyle = UIModalPresentationCurrentContext;
-    videoPicker.mediaTypes = @[(NSString*)kUTTypeMovie, (NSString*)kUTTypeAVIMovie, (NSString*)kUTTypeVideo, (NSString*)kUTTypeMPEG4];
-    videoPicker.videoQuality = UIImagePickerControllerQualityTypeHigh;
     
-    UIViewController* controller = [UIApplication sharedApplication].delegate.window.rootViewController;
-    while (controller.presentedViewController) {
-        controller = controller.presentedViewController;
-    }
-    [controller showDetailViewController:videoPicker sender:nil];
+    // NSString *stringURL = path;
+    // NSURL  *videoURL = [NSURL URLWithString:stringURL];
+    // FBSDKShareVideo *videoMedia = [[FBSDKShareVideo alloc] init];
+    // videoMedia.videoURL = videoURL;
+    // FBSDKShareVideoContent *content = [[FBSDKShareVideoContent alloc] init];
+    // content.video = videoMedia;
+    // UIViewController* controller = [UIApplication sharedApplication].delegate.window.rootViewController;
+    // [FBSDKShareDialog showFromViewController:controller withContent:content delegate:self];
 }
 
 - (void)imagePickerController:(UIImagePickerController *)picker
